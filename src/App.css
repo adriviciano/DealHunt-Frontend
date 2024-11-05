@@ -10,7 +10,7 @@ body {
 }
 
 .app-container {
-  max-width: 800px;
+  width: 80vw;
   margin: auto;
   padding: 20px;
   border-radius: 8px;
