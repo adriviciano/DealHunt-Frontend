@@ -7,7 +7,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [listaCompra, setListaCompra] = useState({ mercadona: [], dia: [] });
   const [isListaVisible, setIsListaVisible] = useState(false);
-  const server = 'http://localhost:5000';
+  const server = 'http://backend-dealhunt.adriviciano.com';
 
   const fetchCompareProducts = () => {
     if (!searchTerm) return;
