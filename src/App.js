@@ -2,6 +2,7 @@ import axios from 'axios';
 import React, { useState } from 'react';
 import html2canvas from 'html2canvas';
 import './App.css';
+import { compararProductos } from './comparator';
 
 function App() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -9,13 +10,42 @@ function App() {
   const [isListaVisible, setIsListaVisible] = useState(false);
   const server = 'http://backend-dealhunt.adriviciano.com';
 
-  const fetchCompareProducts = () => {
+  const cargarProductosMercadona = async (nombreProducto) => {
+    try {
+      const response = await fetch('https://7uzjkl1dj0-dsn.algolia.net/1/indexes/products_prod_4315_es/query?x-algolia-application-id=7UZJKL1DJ0&x-algolia-api-key=9d8f2e39e90df472b4f2e559a116fe17', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          params: `query=${nombreProducto}&clickAnalytics=true&analyticsTags=["web"]&getRankingInfo=true`
+        })
+      });
+
+      const data = await response.json();
+      return data.hits.map(producto => ({
+        categoria: producto.categories[0].name,
+        nombre: producto.display_name,
+        precio_unitario: producto.price_instructions.unit_price + " €",
+        precio_por_unidad: "(" + producto.price_instructions.reference_price + " €/" + producto.price_instructions.reference_format + ")",
+        imagen: producto.thumbnail
+      }));
+
+    } catch (error) {
+      console.error('Error:', error);
+      return [];
+    }
+  }
+
+
+
+  const fetchCompareProducts = async () => {
     if (!searchTerm) return;
-    axios.get(`${server}/compare/${searchTerm}`)
+    const productosMercadona = await cargarProductosMercadona(searchTerm);
+    axios.get(`${server}/dia/${searchTerm}`)
       .then(response => {
-        mostrarResultados(response.data);
+        mostrarResultados(compararProductos(searchTerm, response.data, productosMercadona));
       })
-      .catch(error => console.error('Error fetching compare products:', error));
+      .catch(error => console.error('Error del servidor:', error));
+
   };
 
   const mostrarResultados = (productos) => {
@@ -28,8 +58,9 @@ function App() {
       productoDiv.innerHTML = `
         <img src="${producto.imagen}" alt="${producto.nombre}">
         <h3><strong>${producto.nombre}</strong></h3>
-        <p><strong>Precio:</strong> ${producto.precio_unitario} €</p>
-        <p><strong>Precio por unidad:</strong> ${producto.precio_por_unidad} €</p>
+        <p><strong>Supermercado:</strong> ${producto.supermercado}</p>
+        <p><strong>Precio:</strong> ${producto.precio_unitario}</p>
+        <p><strong>Precio por unidad:</strong> ${producto.precio_por_unidad}</p>
         <button class="add-to-cart-btn">Añadir a la lista de la compra</button>
       `;
       resultadosDiv.appendChild(listaProductos);
@@ -103,11 +134,16 @@ function App() {
         type="text"
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            fetchCompareProducts();
+          }
+        }}
         placeholder="Buscar productos"
       />
       <button onClick={fetchCompareProducts}>Buscar</button>
       <button onClick={() => { mostrarListaCompra(); }}>Ver lista de la compra</button>
-      
+
       <div id="resultados"></div>
 
       {/* Sección de la lista de compra */}
@@ -120,8 +156,8 @@ function App() {
               <>
                 <h3>Lista de la compra Mercadona:</h3>
                 {listaCompra.mercadona.map((producto, index) => (
-                  <p key={index}><strong>{producto.nombre}</strong> - {producto.precio_unitario} 
-                  <img src={producto.imagen} alt={producto.nombre} style={{ width: '50px', height: 'auto' }} /></p>
+                  <p key={index}><strong>{producto.nombre}</strong> - {producto.precio_unitario}
+                    <img src={producto.imagen} alt={producto.nombre} style={{ width: '50px', height: 'auto' }} /></p>
                 ))}
                 <p><strong>Total Mercadona:</strong> {totalMercadona.toFixed(2)} €</p>
               </>
@@ -134,15 +170,15 @@ function App() {
               <>
                 <h3>Lista de la compra Dia:</h3>
                 {listaCompra.dia.map((producto, index) => (
-                  <p key={index}><strong>{producto.nombre}</strong> - {producto.precio_unitario} 
-                  <img src={producto.imagen} alt={producto.nombre} style={{ width: '50px', height: 'auto' }} /></p>
+                  <p key={index}><strong>{producto.nombre}</strong> - {producto.precio_unitario}
+                    <img src={producto.imagen} alt={producto.nombre} style={{ width: '50px', height: 'auto' }} /></p>
                 ))}
                 <p><strong>Total Dia:</strong> {totalDia.toFixed(2)} €</p>
               </>
             ) : (
               <p>No hay productos en la lista de la compra en Dia.</p>
             )}
-            
+
             {/* Mostrar total general */}
             <h3>Total general de la compra: {totalGeneral.toFixed(2)} €</h3>
           </div>
